@@ -1,0 +1,36 @@
+{
+    "initial_parameters": {
+        "gamma_a": 0.02608394355,
+        "k_c": 41.64667915,
+        "m_a": 3.32120031,
+        "gamma_c": 0.006572340045,
+        "alpha": 20.4447203,
+        "m_c": 3.22743791,
+        "k_a": 8.31622837,
+        "tau1": 20,
+        "tau2": 20,
+        "lambda_s": 2.7830692949999998,
+        "lambda_a": 8.21521478,
+        "t_s": 12.67784371,
+        "sigma": 0.784350545,
+        "crh": 0.5
+    },
+    "param_bif_1": "tau1",
+    "param_bif_2": "tau2",
+    "initial_values": {
+        "initial_acth": 2.3,
+        "initial_cort": 24.25
+    },
+    "branch": {
+        "min_bound_1": 0,
+        "min_bound_2": 0,
+        "max_bound_1": 25,
+        "max_bound_2": 25,
+        "max_bound_1_plot": 30,
+        "max_steps_1": 1,
+        "max_steps_2": 1,
+        "n_steps": 1000,
+        "max_iterations": 300
+    },
+    "filename": "tau_1_tau_2"
+}

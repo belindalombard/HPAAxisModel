@@ -1,0 +1,112 @@
+% Run the bifurcation analysis for each participant, and plot that
+% participant's CRH on it. 
+
+% Clean up current env
+run('pipeline_files/part_1_setup.m'); 
+
+% List all config files in the config directory
+path_param_bifurcations = 'config/participants_bif';  % Get all JSON config files
+
+
+for pn = 8:8
+    % Set the current config file path as a global variable
+    current_config_file = [path_param_bifurcations, '/Participant_bif_', int2str(pn), '.0.json' ];
+    disp(['Running pipeline with config file: ', current_config_file]);
+
+    if ~exist('current_config_file', 'var') == 1
+        disp('Running setup');
+        run('pipeline_files/part_1_setup.m')
+        current_config_file = 'config/config.json';
+    end
+
+    current_config_file_params = ['config/participants/Participant_', num2str(pn), '.0.json'];
+
+    run('pipeline_files/part_2_config.m');
+    run('pipeline_files/part_3_functions_one_delay.m');
+
+    % Simulate model and save intermediate figure
+    run('pipeline_files/part_3b_simulate_model_one_delay.m');
+    fig_sim = gcf;
+    if isvalid(fig_sim)
+        fig_sim.PaperPositionMode = 'auto';
+        fig_pos = fig_sim.PaperPosition;
+        fig_sim.PaperSize = [fig_pos(3) fig_pos(4)];
+        sim_savefile = fullfile('results', filename, ['participant_' num2str(pn) '_1_model_simulation.png']);
+        saveas(fig_sim, sim_savefile);
+    end
+
+    % Stability of equilibrium
+    run('pipeline_files/part_4_initial_equilibrium.m');
+    fig_stab1 = gcf;
+    if isvalid(fig_stab1)
+        saveas(fig_stab1, fullfile('results', filename, ['participant_' num2str(pn) '_1_initial_ss.png']));
+    end
+    % Try to get the next figure if it exists
+    figs = findall(0, 'Type', 'figure');
+    if numel(figs) > 1
+        fig_stab2 = figs(2);
+        if isvalid(fig_stab2)
+            saveas(fig_stab2, fullfile('results', filename, ['participant_' num2str(pn) '_2_corrected_ss.png']));
+        end
+    end
+
+    % Initial branch
+    run('pipeline_files/part_5_initial_branch.m');
+    fig_branch = gcf;
+    if isvalid(fig_branch)
+        saveas(fig_branch, fullfile('results', filename, ['participant_' num2str(pn) '_3_branch_stability.png']));
+    end
+    figs = findall(0, 'Type', 'figure');
+    if numel(figs) > 1
+        fig_branch2 = figs(2);
+        if isvalid(fig_branch2)
+            saveas(fig_branch2, fullfile('results', filename, ['participant_' num2str(pn) '_4_stability_point_number.png']));
+        end
+    end
+
+    % Hopf bifurcation
+    run('pipeline_files/part_6_hopf_bifurcation.m');
+    fig_hopf = gcf;
+    if isvalid(fig_hopf)
+        saveas(fig_hopf, fullfile('results', filename, ['participant_' num2str(pn) '_5_hopf_stability.png']));
+    end
+    figs = findall(0, 'Type', 'figure');
+    if numel(figs) > 1
+        fig_hopf_branch = figs(2);
+        if isvalid(fig_hopf_branch)
+            saveas(fig_hopf_branch, fullfile('results', filename, ['participant_' num2str(pn) '_6_hopf_bifurcation_diagram.pdf']));
+        end
+    end
+
+    % Hopf bifurcation log scale
+    run('pipeline_files/part_6b_hopf_bifurcation_logscale_plot.m');
+    fig_hopf_log = gcf;
+    if isvalid(fig_hopf_log)
+        saveas(fig_hopf_log, fullfile('results', filename, ['participant_' num2str(pn) '_6b_hopf_bifurcation_log.png']));
+    end
+
+    % CRH lines plot and overlay
+
+    figure_number = 8;
+    run('pipeline_files/part_6a_1_crh_lines_plot.m');
+    fig_crh_lines = gcf;
+    if isvalid(fig_crh_lines)
+        saveas(fig_crh_lines, fullfile('results', filename, ['participant_' num2str(pn) '_7_crh_lines_plot.pdf']));
+    end
+    run('pipeline_files/part_6c_overlay_plot.m');
+    fig_overlay = gcf;
+    if isvalid(fig_overlay)
+        saveas(fig_overlay, fullfile('results', filename, ['participant_' num2str(pn) '_8_overlay_plot.png']));
+    end
+
+    % Second CRH lines plot (figure 9)
+
+    figure_number = 9;
+    run('pipeline_files/part_6a_1_crh_lines_plot.m');
+    fig_crh_lines2 = gcf;
+    if isvalid(fig_crh_lines2)
+        saveas(fig_crh_lines2, fullfile('results', filename, ['participant_' num2str(pn) '_9_crh_lines_plot2.pdf']));
+    end
+
+    close all;
+end

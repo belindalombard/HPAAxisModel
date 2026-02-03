@@ -1,0 +1,21 @@
+{
+    "simulation_parameters": {
+        "k_a":  7.06701578,
+        "k_c": 23.69004481,
+        "alpha": 20.27582973,
+        "delay": 16.394627545,
+        "m_a": 3.3684374950000002,
+        "m_c": 3.287891905,
+        "gamma_a": 0.0462,
+        "gamma_c": 0.00906
+    },
+    "crh_parameters": {
+        "sigma": 0.64350416,
+        "t_s": 0,
+        "T_c": 1440,
+        "lambda_s": 100.84,
+        "lambda_a": 100.33910318
+    },
+    "filename": "participant_9.0_bif",
+    "participant_number": 9.0
+}
