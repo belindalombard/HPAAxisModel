@@ -1,6 +1,6 @@
-# HPA Axis Mathematical Model
+# HPA Axis Model
 
-A comprehensive mathematical modeling framework for the Hypothalamic-Pituitary-Adrenal (HPA) axis using delay differential equations (DDEs). This repository contains everything needed to simulate, fit, analyze, and perform bifurcation analysis on the cortisol-ACTH feedback system.
+A comprehensive mathematical modeling & analysis framework for the Hypothalamic-Pituitary-Adrenal (HPA) axis using delay differential equations (DDEs). This repository contains everything needed to simulate, fit, analyze, and perform bifurcation analysis on the cortisol-ACTH feedback system.
 
 ## Overview
 
