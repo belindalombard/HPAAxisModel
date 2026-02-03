@@ -1,0 +1,98 @@
+[
+    {
+        "ultradian_points": [
+            {
+                "timing": 325,
+                "phase": 3.141592653589793,
+                "describe": "peak"
+            },
+            {
+                "timing": 294,
+                "phase": 1.5707963267948966,
+                "describe": "midpoint_rising"
+            },
+            {
+                "timing": 264,
+                "phase": 0,
+                "describe": "through"
+            },
+            {
+                "timing": 380,
+                "phase": 4.71238898038469,
+                "describe": "midpoint_falling"
+            }
+        ]
+    },
+    {
+        "ultradian_points": [
+            {
+                "timing": 883,
+                "phase": 3.141592653589793,
+                "describe": "peak"
+            },
+            {
+                "timing": 851,
+                "phase": 1.5707963267948966,
+                "describe": "midpoint_rising"
+            },
+            {
+                "timing": 819,
+                "phase": 0,
+                "describe": "through"
+            },
+            {
+                "timing": 916,
+                "phase": 4.71238898038469,
+                "describe": "midpoint_falling"
+            }
+        ]
+    },
+    {
+        "ultradian_points": [
+            {
+                "timing": 1165,
+                "phase": 3.141592653589793,
+                "describe": "peak"
+            },
+            {
+                "timing": 1129,
+                "phase": 1.5707963267948966,
+                "describe": "midpoint_rising"
+            },
+            {
+                "timing": 1094,
+                "phase": 0,
+                "describe": "through"
+            },
+            {
+                "timing": 1224,
+                "phase": 4.71238898038469,
+                "describe": "midpoint_falling"
+            }
+        ]
+    },
+    {
+        "ultradian_points": [
+            {
+                "timing": 1351,
+                "phase": 3.141592653589793,
+                "describe": "peak"
+            },
+            {
+                "timing": 1317,
+                "phase": 1.5707963267948966,
+                "describe": "midpoint_rising"
+            },
+            {
+                "timing": 1284,
+                "phase": 0,
+                "describe": "through"
+            },
+            {
+                "timing": 1444,
+                "phase": 4.71238898038469,
+                "describe": "midpoint_falling"
+            }
+        ]
+    }
+]
