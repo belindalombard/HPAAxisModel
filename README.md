@@ -2,7 +2,7 @@
 
 A comprehensive mathematical modeling framework for the Hypothalamic-Pituitary-Adrenal (HPA) axis using delay differential equations (DDEs). This repository contains everything needed to simulate, fit, analyze, and perform bifurcation analysis on the cortisol-ACTH feedback system.
 
-## 📋 Overview
+## Overview
 
 This repository provides a complete pipeline for HPA axis modeling:
 
@@ -12,40 +12,7 @@ This repository provides a complete pipeline for HPA axis modeling:
 4. **Parameter Fitting** - Fit model parameters to experimental data using PINTS
 5. **Bifurcation Analysis** - Analyze system dynamics using DDE-BIFTOOL (MATLAB)
 
-The model describes the feedback interactions between:
-- **CRH** (Corticotropin-Releasing Hormone)
-- **ACTH** (Adrenocorticotropic Hormone)  
-- **Cortisol** (the primary stress hormone)
-
-## Repository Structure
-
-```
-HPAAxisModel/
-├── model/                      # Core HPA axis model
-│   ├── code/
-│   │   ├── run_model.py       # Main simulation script
-│   │   ├── classes/           # Model class definitions
-│   │   └── additional_functions/
-│   ├── config/                # Parameter configuration files
-│   ├── data/                  # Model input data
-│   └── output/                # Simulation outputs
-│
-├── pints_fitting/             # Parameter optimization
-│   └── run_pints.py          # PINTS fitting script
-│
-├── data_analysis/             # Data processing and analysis
-│   ├── code/
-│   │   ├── data_prep.py      # Data preparation pipeline
-│   │   └── wavelet_analysis.py  # PyBOAT wavelet analysis
-│   ├── data/                  # Raw and processed data
-│   └── output/                # Analysis outputs
-│
-├── ddebiftool/                # Bifurcation analysis (MATLAB)
-│   ├── run_pipeline/          # MATLAB scripts
-│   ├── functions/             # Helper functions
-│   ├── 3_draw_samples_for_matlab.py  # Config generation
-│   └── 4_parameter_ranges.py
-```
+The model describes the feedback interactions between ACTH and Cortisol, driven by CRH (external function).
 
 ## Getting Started
 
@@ -61,8 +28,8 @@ scipy
 seaborn
 pints
 ddeint
-pyboat-dtk  # For wavelet analysis
-imageio     # Optional, for animations
+pyboat  # For wavelet analysis
+imageio  # Optional, for animations
 ```
 
 **MATLAB Requirements** (for bifurcation analysis):
@@ -79,7 +46,7 @@ cd HPAAxisModel
 
 2. Install Python dependencies:
 ```bash
-pip install numpy pandas matplotlib scipy seaborn pints ddeint pyboat-dtk imageio
+pip install numpy pandas matplotlib scipy seaborn pints ddeint pyboat imageio
 ```
 
 3. For MATLAB bifurcation analysis, download and install [DDE-BIFTOOL](https://sourceforge.net/projects/ddebiftool/)
@@ -145,17 +112,14 @@ python model/run_model.py --config config/parameters.json --plots 1,2 --output m
 ```json
 {
   "parameters": {
-    "k1": 2.5,
-    "k2": 1.8,
-    "k3": 3.2,
-    "tau1": 15,
-    "tau2": 45,
-    "tau3": 180
+    "p1": 2.5,
+    "p2": 1.8,
+    "p3": 3.2
   },
   "fixed_params": {
-    "T": 1440,
-    "num_days": 3
+    "T": 1440
   },
+  "num_days": 3, 
   "signal": "Both"
 }
 ```
@@ -165,26 +129,25 @@ python model/run_model.py --config config/parameters.json --plots 1,2 --output m
 Fit model parameters to experimental data using PINTS optimization:
 
 ```bash
-cd pints_fitting
-python run_pints.py --config parameters.json --sensitivities 1
+python pints_fitting/run_pints.py --config parameters.json 
 ```
 
 **Arguments:**
 - `--config`: Configuration file with initial parameter guesses
-- `--sensitivities`: Run sensitivity analysis (1 or 0)
-- `--phase_align`: Align model to data by phase shifting (1 or 0)
+- `--phase_align`: Align model to data by phase shifting (1 or 0). In this case, do not fit t_s as well. 
 - `--animation`: Generate optimization animation (1 or 0)
 
 **Output:**
 - `output/{participant}.{run}/` - Fitted parameters and plots
 - `output/{participant}.{run}/parameters.txt` - Fitted parameter values
-- `output/{participant}.{run}/sensitivities.npy` - Sensitivity matrices (if enabled)
 
 **Fitting Process:**
 1. Load observed ACTH and Cortisol data
 2. Initialize model with parameter guesses from config
 3. Run CMA-ES optimization to minimize error
 4. Save best-fit parameters and generate comparison plots
+
+Note: This was run on an HPC cluster
 
 ### 5. Bifurcation Analysis
 
@@ -193,9 +156,8 @@ Analyze system dynamics and stability using DDE-BIFTOOL in MATLAB:
 #### Step 1: Generate Configuration Files
 
 ```bash
-cd ddebiftool
-python 3_draw_samples_for_matlab.py
-python 4_parameter_ranges.py
+python ddebiftool/get_csv_file_from_configs.py
+python ddebiftool/draw_samples_for_matlab.py
 ```
 
 This creates configuration files for MATLAB bifurcation analysis.
@@ -218,30 +180,9 @@ run_all_configs  % Run bifurcation analysis for all configurations
 - Period doubling cascades
 - Limit cycle analysis
 
-## 📐 Model Equations
+## Data Format
 
-The HPA axis model is described by a system of delay differential equations:
-
-```
-dCRH/dt = f1(CRH(t), Cortisol(t-τ1))
-dACTH/dt = f2(ACTH(t), CRH(t-τ2), Cortisol(t))
-dCortisol/dt = f3(Cortisol(t), ACTH(t-τ3))
-```
-
-Where:
-- τ1, τ2, τ3 are time delays representing signal transmission times
-- f1, f2, f3 are nonlinear functions describing hormone production and clearance
-- Feedback inhibition is modeled through cortisol's effect on CRH and ACTH
-
-Key features:
-- **Negative feedback**: Cortisol inhibits CRH and ACTH production
-- **Time delays**: Account for synthesis and transport times
-- **Ultradian rhythms**: Emerge naturally from the delayed feedback structure
-- **Nonlinear dynamics**: Hill functions model saturation effects
-
-## 📈 Data Format
-
-### Input Data Format
+### Input data format
 
 Raw participant data files should be CSV with columns:
 ```
@@ -269,53 +210,17 @@ Where:
 - `test`: Participant ID
 - `timesteps_after_reftime`: Minutes after reference time (09:00)
 
-## 🔬 Analysis Workflows
 
-### Complete Pipeline Example
-
-```bash
-# 1. Prepare data
-cd data_analysis/code
-python data_prep.py
-
-# 2. Wavelet analysis
-python wavelet_analysis.py --hormone Cortisol
-
-# 3. Fit parameters to participant 9
-cd ../../pints_fitting
-python run_pints.py --config config_participant_9.json
-
-# 4. Run simulation with fitted parameters
-cd ../model/code
-python run_model.py --config ../../pints_fitting/output/9.1/best_fit_params.json --plots 1,3,4
-
-# 5. Bifurcation analysis in MATLAB
-# (Open MATLAB and navigate to ddebiftool/run_pipeline)
-```
-
-### Sensitivity Analysis
-
-```bash
-cd pints_fitting
-python run_pints.py --config parameters.json --sensitivities 1
-```
-
-This computes partial derivatives of model outputs with respect to parameters, helping identify which parameters most influence the dynamics.
-
-## 📊 Visualization Outputs
+## Visualisation Outputs
 
 ### Model Simulation Plots
 - **Plot Type 1**: Separate ACTH and Cortisol time series
-- **Plot Type 3**: Combined ACTH and Cortisol on same axes
-- **Plot Type 4**: Combined with confidence bounds
-- **Plot Type 5**: Includes CRH dynamics
+- **Plot Type 4**: Combined ACTCH + CORT
 
 ### Wavelet Analysis Plots
 - Individual participant wavelet spectrograms
 - Total power vs. period
 - Mean/median power heatmaps
-- Statistical comparison matrices
-- Boxplots comparing participants
 
 ### Fitting Plots
 - Observed vs. fitted time series
@@ -326,16 +231,14 @@ This computes partial derivatives of model outputs with respect to parameters, h
 ### Bifurcation Diagrams
 - Equilibrium branches
 - Limit cycles
-- Period doubling routes to chaos
 - Two-parameter continuation
 
-## 🛠️ Customization
+## Customization
 
 ### Adding New Parameters
 
 1. Edit `model/config/parameters.json`
 2. Update `model/code/classes/model_class.py` if new parameters require model changes
-3. Adjust parameter bounds in `model/code/classes/custom_boundaries.py`
 
 ### Custom Error Functions
 
@@ -344,7 +247,6 @@ Create new error functions in `model/code/classes/error_function.py`:
 ```python
 class CustomError(pints.ErrorMeasure):
     def __call__(self, parameters):
-        # Your custom error calculation
         pass
 ```
 
@@ -357,49 +259,20 @@ participant_id,min_period,max_period,power_thresh,smoothing_wsize,sliding_window
 ...
 ```
 
-## 📚 References
+## References
 
 1. **Original Model**: Walker et al. (2010) - "Hypothalamic-pituitary-adrenal axis models"
 2. **PINTS**: https://github.com/pints-team/pints
 3. **DDE-BIFTOOL**: Engelborghs et al. (2007)
 4. **PyBOAT**: Mönke et al. (2020) - "Oscillation detection in biological time series"
 
-## 🤝 Contributing
-
-This is a research codebase. For questions or collaboration:
-- Open an issue for bugs or feature requests
-- Submit pull requests with clear descriptions
-- Contact: [Your contact information]
-
-## 📄 License
-
-[Specify license - typically MIT or GPL for academic code]
-
-## 🙏 Acknowledgments
-
-- Laboratory/Institution name
-- Funding sources
-- Collaborators
-
-## 📝 Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@software{hpa_axis_model,
-  author = {[Your Name]},
-  title = {HPA Axis Mathematical Model},
-  year = {2026},
-  url = {[Repository URL]}
-}
 ```
 
-## 📞 Support
+## Support
 
 For questions or issues:
 - Check existing issues on GitHub
-- Consult the documentation in `docs/`
-- Contact: [your.email@university.edu]
+- Contact: [bxl388@student.bham.ac.uk]
 
 ---
 
