@@ -332,5 +332,4 @@ For questions or issues:
 ---
 
 **Last Updated:** February 2026
-**Version:** 1.0.0
 # HPAAxisModel
