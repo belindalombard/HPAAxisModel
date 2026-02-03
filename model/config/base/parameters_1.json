@@ -1,0 +1,41 @@
+{
+    "signal": "Both",
+    "participant": 1,
+    "parameters": {
+        "gamma_a": 0.0260769841,
+        "k_c": 41.1487267,
+        "m_a": 3.13664292,
+        "gamma_c": 0.00730981499,
+        "alpha": 22.1034754,
+        "m_c": 2.87432814,
+        "k_a": 10.6132954,
+        "delay": 26.0327526,
+        "lambda_s": 2.40373397,
+        "lambda_a": 10.3200653,
+        "t_s": 79.1641199,
+        "sigma": 0.782822323
+    },
+    "fixed_params": {
+        "T_c": 1440,
+        "h": 1
+    },
+    "plot_title": "",
+    "num_days": 8,
+    "reject": false,
+    "final_value": true,
+    "show_observed_values": true,
+    "plot_option": 3,
+    "plot_crh": true,
+    "stressor": {
+        "magnitude": 800,
+        "decay": 1,
+        "time_in_scope": 100
+    },
+    "error": 73.4,
+    "error_metrics": {
+        "mae": 0.888,
+        "envelope": 0.0356,
+        "phase": 0.102,
+        "mse": 73.4
+    }
+}

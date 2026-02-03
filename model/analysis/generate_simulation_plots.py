@@ -1,0 +1,158 @@
+"""
+Generate HPA Axis Model Simulations and Plots (manuscript style)
+
+Usage:
+    python model/analysis/generate_simulation_plots.py --simulate --plot
+    python model/analysis/generate_simulation_plots.py --simulate
+    python model/analysis/generate_simulation_plots.py --plot
+
+--simulate : Run model simulations for all participants and save .npy files
+--plot     : Generate summary and per-participant plots (manuscript style)
+
+Outputs are saved in model/analysis/output/
+"""
+
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+import argparse
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import pandas as pd
+import json
+from model.code.classes.model_class import Model
+
+plt.rcParams.update({'font.size': 18, 'xtick.labelsize': 14, 'ytick.labelsize': 14})
+
+DATA_DIR = 'data_analysis/data'
+CONFIG_DIR = 'model/config/base'
+OUTPUT_DIR = 'model/analysis/output'
+SIM_DIR = os.path.join(OUTPUT_DIR, 'participant_simulations')
+FIG_DIR = os.path.join(OUTPUT_DIR, 'figures')
+
+os.makedirs(SIM_DIR, exist_ok=True)
+os.makedirs(FIG_DIR, exist_ok=True)
+
+ACTH_DATA_FILE = os.path.join(DATA_DIR, 'data_shifted_ACTH_1min_09_00.csv')
+CORT_DATA_FILE = os.path.join(DATA_DIR, 'data_shifted_Cortisol_1min_09_00.csv')
+
+SIGNAL = 'both'
+NUM_DAYS = 8
+TIMESTEPS = 1440 * NUM_DAYS
+TIMES = np.linspace(0, TIMESTEPS, TIMESTEPS)
+REJECT = False
+
+PARTICIPANT_RANGE = range(1, 11)
+
+# --- Simulation ---
+def run_simulations():
+    for i in PARTICIPANT_RANGE:
+        config_path = os.path.join(CONFIG_DIR, f'parameters_{i}.json')
+        with open(config_path, 'r') as file:
+            config = json.load(file)
+        parameters = config.get('parameters', {})
+        fixed_params = config.get('fixed_params', {})
+        dde_model = Model(fixed_params=fixed_params, suggested_params=parameters, signal=SIGNAL, num_days=NUM_DAYS, reject=REJECT)
+        sim_values = dde_model.simulate(dde_model.suggested_parameters(), TIMES)
+        np.save(os.path.join(SIM_DIR, f'{i}.npy'), sim_values)
+        print(f"Saved simulation for participant {i}")
+
+# --- Plotting ---
+def plot_all():
+    acth_data = pd.read_csv(ACTH_DATA_FILE)
+    cort_data = pd.read_csv(CORT_DATA_FILE)
+    fig = plt.figure(figsize=(13, 16))
+    outer_grid = gridspec.GridSpec(5, 2, figure=fig, hspace=0.3, wspace=0.4)
+    label_position = (0, 0.87)
+    label_counter = 0
+    for idx, participant_number in enumerate(PARTICIPANT_RANGE):
+        sim_values = np.load(os.path.join(SIM_DIR, f'{participant_number}.npy'))
+        x_axis = [x - 1440 * (NUM_DAYS - 1) for x in TIMES[((NUM_DAYS - 1) * 1440):]]
+        obs_acth = acth_data.loc[acth_data['test'] == participant_number, 'y'].to_numpy()
+        obs_cort = cort_data.loc[cort_data['test'] == participant_number, 'y'].to_numpy()
+        row = idx // 2
+        col = idx % 2
+        inner_grid = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=outer_grid[row, col], hspace=0.3)
+        acth_ax = fig.add_subplot(inner_grid[0])
+        cort_ax = fig.add_subplot(inner_grid[1])
+        # ACTH
+        acth_ax.plot(x_axis, obs_acth, linestyle='--', label='Observed ACTH', color='blue')
+        acth_ax.plot(x_axis, sim_values[:, 0], linestyle='-', label='Simulated ACTH', color='blue')
+        acth_ax.legend(prop={'size': 8})
+        acth_ax.yaxis.set_label_coords(-0.05, 0.5)
+        acth_ax.grid(True)
+        # CORT
+        cort_ax.plot(x_axis, obs_cort, linestyle='--', label='Observed CORT', color='red')
+        cort_ax.plot(x_axis, sim_values[:, 1], linestyle='-', label='Simulated CORT', color='red')
+        cort_ax.legend(prop={'size': 8})
+        cort_ax.yaxis.set_label_coords(-0.05, 0.5)
+        cort_ax.grid(True)
+        # X-ticks
+        x_axis_time_of_day = [(x + 540) % 1440 for x in x_axis]
+        x_axis_time_of_day = [f"{int(time // 60):02d}:{int(time % 60):02d}" for time in x_axis_time_of_day]
+        x_axis_time_of_day.append("09:00")
+        acth_ax.set_xticks(np.arange(0, len(x_axis_time_of_day), step=1440 // 6))
+        acth_ax.tick_params(axis='x', labelbottom=False)
+        cort_ax.set_xticks(np.arange(0, len(x_axis_time_of_day), step=1440 // 6))
+        if row == 4:
+            cort_ax.set_xticklabels(x_axis_time_of_day[::1440 // 6])
+            cort_ax.set_xlabel('Time')
+        else:
+            cort_ax.set_xticklabels([])
+        # Panel label
+        label_counter += 1
+        if participant_number % 2 == 1:
+            horizontal_position = label_position[0] + 0.045
+        else:
+            horizontal_position = label_position[0] + 0.5
+        fig.text(horizontal_position, label_position[1] - row/6.1, f'({chr(97 + label_counter - 1)})')
+    # Y-labels and legend
+    fig.text(0.07, 0.5, 'ACTH / CORT (nmol/L)', va='center', rotation='vertical')
+    fig.text(0.525, 0.5, 'ACTH / CORT (nmol/L)', va='center', rotation='vertical')
+    fig.tight_layout()
+    fig.savefig(os.path.join(FIG_DIR, 'figure_simulation_grid.pdf'))
+    fig.savefig(os.path.join(FIG_DIR, 'figure_simulation_grid.png'), dpi=300)
+    print(f"Saved grid plot to {FIG_DIR}")
+    # Per-participant plots
+    for participant_number in PARTICIPANT_RANGE:
+        sim_values = np.load(os.path.join(SIM_DIR, f'{participant_number}.npy'))
+        x_axis = [x - 1440 * (NUM_DAYS - 1) for x in TIMES[((NUM_DAYS - 1) * 1440):]]
+        obs_acth = acth_data.loc[acth_data['test'] == participant_number, 'y'].to_numpy()
+        obs_cort = cort_data.loc[cort_data['test'] == participant_number, 'y'].to_numpy()
+        fig, (acth_ax, cort_ax) = plt.subplots(2, 1, figsize=(8, 4))
+        acth_ax.plot(x_axis, obs_acth, linestyle='--', label='Observed ACTH', color='blue')
+        acth_ax.plot(x_axis, sim_values[:, 0], linestyle='-', label='Simulated ACTH', color='blue')
+        acth_ax.yaxis.set_label_coords(-0.089, 0.5)
+        cort_ax.plot(x_axis, obs_cort, linestyle='--', label='Observed CORT', color='red')
+        cort_ax.plot(x_axis, sim_values[:, 1], linestyle='-', label='Simulated CORT', color='red')
+        cort_ax.yaxis.set_label_coords(-0.089, 0.5)
+        x_axis_time_of_day = [(x + 540) % 1440 for x in x_axis]
+        x_axis_time_of_day = [f"{int(time // 60):02d}:{int(time % 60):02d}" for time in x_axis_time_of_day]
+        x_axis_time_of_day.append("09:00")
+        acth_ax.set_xticks(np.arange(0, len(x_axis_time_of_day), step=1440 // 6))
+        acth_ax.tick_params(axis='x', labelbottom=False)
+        cort_ax.set_xticks(np.arange(0, len(x_axis_time_of_day), step=1440 // 6))
+        cort_ax.set_xticklabels(x_axis_time_of_day[::1440 // 6])
+        if participant_number <= 5:
+            acth_ax.set_ylabel('ACTH\n(pmol/L)')
+            cort_ax.set_ylabel('CORT\n(nmol/L)')
+        if participant_number in (5, 10):
+            cort_ax.set_xlabel('Time (hour)')
+        fig.tight_layout()
+        fig.savefig(os.path.join(FIG_DIR, f'participant_{participant_number}.png'), dpi=300)
+        fig.savefig(os.path.join(FIG_DIR, f'participant_{participant_number}.pdf'), dpi=300)
+        plt.close(fig)
+    print(f"Saved per-participant plots to {FIG_DIR}")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Generate HPA Axis model simulations and plots')
+    parser.add_argument('--simulate', action='store_true', help='Run model simulations')
+    parser.add_argument('--plot', action='store_true', help='Generate plots')
+    args = parser.parse_args()
+    if args.simulate:
+        run_simulations()
+    if args.plot:
+        plot_all()
+    if not args.simulate and not args.plot:
+        print("No action specified. Use --simulate and/or --plot.")

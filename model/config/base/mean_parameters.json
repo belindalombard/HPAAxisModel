@@ -1,0 +1,34 @@
+{
+    "signal": "Both",
+    "participant": 10, 
+    "parameters": {
+        "gamma_a": 0.03059598562,
+        "k_c": 39.81554366,
+        "k_a":  9.931204779,
+        "gamma_c": 0.0072256054,
+        "alpha": 20.78240012,
+        "delay": 22.187837769999998,
+        "sigma": 0.7268412216,
+        "t_s": 0,
+        "lambda_s": 2.941013892,
+        "lambda_a": 9.324924679,
+        "m_a": 3.439156062,
+        "m_c": 3.4071021349999997
+    },
+    "fixed_params": {
+        "h": 1
+    },
+    "plot_title": "Mean parameters",
+    "num_days": 6,
+    "reject": false,
+    "final_value": true, 
+    "show_observed_values": false,
+    "plot_option": 2,
+    "plot_crh": true, 
+    "stressor": 
+        {
+            "magnitude": 0,
+            "decay": 0.01,
+            "time_in_scope": 100 
+        }
+}

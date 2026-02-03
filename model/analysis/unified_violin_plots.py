@@ -1,0 +1,332 @@
+"""
+Violin plot generator
+=======================================
+
+This script generates violin plots for model parameters from the respective config files. 
+
+EXAMPLE USAGE:
+
+python analysis/code/unified_violin_plots.py --config model/config/base/ 
+
+
+"""
+
+import os
+import argparse
+import json
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.ticker as mticker
+from pathlib import Path
+from typing import Dict, List, Tuple, Set, Optional
+
+# Parse arguments
+parser = argparse.ArgumentParser(description="Generate violin plots for parameter distributions.")
+
+parser.add_argument('--config_dir', type=str, default='model/config/base',
+                    help='Config directory to load parameters from (alternative to --input)')
+
+parser.add_argument('--outdir', type=str, default='model/analysis/output/violin_plots',
+                    help='Output directory for plots')
+parser.add_argument('--fontsize', type=int, default=16, help='Base font size')
+parser.add_argument('--figwidth', type=float, default=6, help='Figure width')
+parser.add_argument('--figheight', type=float, default=3, help='Figure height')
+parser.add_argument('--padding', type=float, default=0.2, help='Extra padding for x-axis range (fraction)')
+parser.add_argument('--tick_shrink', type=float, default=0.92, help='Mean/SD tick shrink factor')
+
+args = parser.parse_args()
+
+# Create output directory
+os.makedirs(args.outdir, exist_ok=True)
+
+# Font settings
+TITLE_SIZE = int(1.5 * args.fontsize)
+LABEL_SIZE = int(1.5 * args.fontsize)
+TICK_SIZE = int(1.5 * max(8, int(0.9 * args.fontsize)))
+
+plt.rcParams.update({'font.size': int(1.5 * args.fontsize)})
+
+# Parameter metadata
+param_titles = {
+    'alpha': 'CORT synthesis rate',
+    'delay': 'Feedback delay',
+    'gamma_a': 'ACTH turnover constant',
+    'gamma_c': 'CORT turnover constant',
+    'k_a': 'ACTH half-max constant',
+    'k_c': 'CORT half-max constant',
+    'm_a': 'ACTH Hill coefficient',
+    'm_c': 'CORT Hill coefficient',
+    'lambda_a': 'Circadian amplitude',
+    'lambda_s': 'Circadian shape factor',
+    'sigma': 'Circadian asymmetry',
+    't_s': 'Circadian time shift',
+}
+
+param_symbols = {
+    'alpha': r'$\alpha$ (nM/min)',
+    'delay': r'$\tau$ (min)',
+    'gamma_a': r'$\gamma_a$ (min$^{-1}$)',
+    'gamma_c': r'$\gamma_c$ (min$^{-1}$)',
+    'k_a': r'$K_a$ (pmol/L)',
+    'k_c': r'$K_c$ (nmol/L)',
+    'm_a': r'$m_a$',
+    'm_c': r'$m_c$',
+    'lambda_s': r'$\lambda_s$',
+    'lambda_a': r'$\lambda_a$',
+    'sigma': r'$\sigma$',
+    't_s': r'$t_s$ (min)'
+    }
+
+
+
+
+def load_base_parameters(config_dir: str) -> pd.DataFrame:
+    """Load parameters from base config files."""
+    config_dir = Path(config_dir)
+    all_params = []
+    
+    for i in range(1, 11):
+        config_file = config_dir / f"parameters_{i}.json"
+        if config_file.exists():
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+                params = config.get('parameters', {})
+                params['participant'] = i
+                all_params.append(params)
+    
+    return pd.DataFrame(all_params)
+
+def calculate_violin_range(data: pd.Series, padding: float = 0.05) -> Tuple[float, float]:
+    """
+    Calculate x-axis range by actually creating a violin plot and extracting the KDE boundaries.
+    This is much more accurate than statistical approximations.
+    """
+    clean_data = data.dropna()
+    
+    if clean_data.empty:
+        return 0, 1
+    
+    if len(clean_data) == 1:
+        # Single point - create a small range around it
+        val = clean_data.iloc[0]
+        margin = abs(val) * 0.1 if val != 0 else 1
+        return val - margin, val + margin
+    
+    # Create a temporary violin plot to extract actual KDE boundaries
+    fig, ax = plt.subplots(figsize=(1, 1))  # Tiny figure for efficiency
+    violin_parts = sns.violinplot(x=clean_data, ax=ax)
+    
+    # Extract actual x-coordinates from the violin plot paths
+    all_x_coords = []
+    for collection in ax.collections:
+        for path in collection.get_paths():
+            vertices = path.vertices
+            all_x_coords.extend(vertices[:, 0])  # x-coordinates from the path
+    
+    plt.close(fig)  # Clean up
+    
+    if all_x_coords:
+        actual_min = min(all_x_coords)
+        actual_max = max(all_x_coords) 
+        
+        # Add small padding for visual breathing room
+        range_span = actual_max - actual_min
+        padding_amount = range_span * padding
+        
+        return actual_min - padding_amount, actual_max + padding_amount
+    else:
+        # Fallback to data range if violin extraction fails
+        margin = (clean_data.max() - clean_data.min()) * 0.1
+        return clean_data.min() - margin, clean_data.max() + margin
+
+
+def calculate_robust_range(data: pd.Series, padding: float = 0.2) -> Tuple[float, float]:
+    """Calculate range using actual violin plot boundaries."""
+    return calculate_violin_range(data, padding * 0.25)  # Convert padding to smaller visual padding
+
+def _violin_y_extent(ax_collection, xval, pad_frac=0.01):
+    """Get the vertical extent of violin at given x position."""
+    all_x, all_y = [], []
+    for path in ax_collection.get_paths():
+        v = path.vertices
+        all_x.append(v[:, 0])
+        all_y.append(v[:, 1])
+    
+    if not all_x:
+        return 0, 1
+        
+    xs = np.concatenate(all_x)
+    ys = np.concatenate(all_y)
+
+    xmin, xmax = xs.min(), xs.max()
+    tol = max((xmax - xmin) * pad_frac, 1e-9)
+    mask = np.abs(xs - xval) <= tol
+
+    if np.count_nonzero(mask) >= 2:
+        y0 = ys[mask].min()
+        y1 = ys[mask].max()
+    else:
+        y0 = ys.min()
+        y1 = ys.max()
+    return y0, y1
+
+
+def _style_axes(ax, title_text, xlabel_text, xlim=None):
+    """Style axes with consistent formatting."""
+    ax.set_title(title_text, fontsize=TITLE_SIZE, pad=8, weight='normal')
+    ax.set_xlabel(xlabel_text, fontsize=LABEL_SIZE, labelpad=6)
+    ax.set_yticks([])
+    ax.tick_params(axis='x', labelsize=TICK_SIZE)
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=5))
+    
+    if xlim:
+        ax.set_xlim(xlim)
+    
+    for spine in ['top', 'right', 'left', 'bottom']:
+        ax.spines[spine].set_visible(True)
+
+
+def create_violin_plot_variants(data: pd.Series, title: str, symbol: str, 
+                               xlim: Optional[Tuple[float, float]], color: str, 
+                               base_filename: str):
+    """Create both variants of violin plots (clipped lines + errorbar versions)."""
+    if data.dropna().empty:
+        return
+    
+    clean_data = data.dropna()
+    mean = clean_data.mean()
+    std = clean_data.std()
+    
+    # =============================
+    # VERSION 1: Clipped mean/SD lines
+    # =============================
+    fig1 = plt.figure(figsize=(args.figwidth, args.figheight))
+    ax1 = sns.violinplot(x=clean_data, inner=None, color=color)
+    
+    # Set aspect ratio
+    try:
+        aspect = 1.2
+        fig_width, fig_height = fig1.get_size_inches()
+        new_height = fig_width / aspect
+        fig1.set_size_inches(fig_width, new_height, forward=True)
+    except Exception:
+        pass
+    
+    # Add clipped mean and std lines
+    if len(ax1.collections) > 0:
+        violin = ax1.collections[0]
+        
+        def draw_segment(xval, solid=True, shrink=args.tick_shrink):
+            y0, y1 = _violin_y_extent(violin, xval, pad_frac=0.01)
+            yc = 0.5 * (y0 + y1)
+            half = 0.5 * (y1 - y0) * shrink
+            ylow, yhigh = yc - half, yc + half
+            ax1.plot([xval, xval], [ylow, yhigh],
+                    color='black', linewidth=2,
+                    linestyle='-' if solid else '--')
+        
+        # Mean (solid) and ±SD (dashed) clipped to body
+        draw_segment(mean, solid=True)
+        if std > 0:
+            draw_segment(mean - std, solid=False)
+            draw_segment(mean + std, solid=False)
+    
+    _style_axes(ax1, title, symbol, xlim)
+    plt.tight_layout()
+    
+    # Save version 1
+    out1_png = f"{base_filename}.png"
+    out1_pdf = f"{base_filename}.pdf"
+    plt.savefig(out1_png, dpi=300)
+    plt.savefig(out1_pdf)
+    plt.close(fig1)
+    
+    # =============================
+    # VERSION 2: Mean point + errorbar
+    # =============================
+    fig2 = plt.figure(figsize=(args.figwidth, args.figheight))
+    ax2 = sns.violinplot(x=clean_data, inner=None, color=color)
+    
+    # Set aspect ratio
+    try:
+        aspect = 1.2
+        fig2_width, fig2_height = fig2.get_size_inches()
+        new2_height = fig2_width / aspect
+        fig2.set_size_inches(fig2_width, new2_height, forward=True)
+    except Exception:
+        pass
+    
+    # Add mean point + errorbar
+    if len(ax2.collections) > 0:
+        violin2 = ax2.collections[0]
+        y0_full, y1_full = _violin_y_extent(violin2, mean, pad_frac=0.05)
+        y_center = 0.5 * (y0_full + y1_full)
+        
+        # Mean point + horizontal ±SD error bar
+        if std > 0:
+            ax2.errorbar(mean, y_center, xerr=std, fmt='o', color='black',
+                        elinewidth=2, capsize=6, markersize=6)
+        else:
+            ax2.plot(mean, y_center, 'ko', ms=6)
+    
+    _style_axes(ax2, title, symbol, xlim)
+    plt.tight_layout()
+    
+    # Save version 2
+    out2_png = f"{base_filename}_v2.png"
+    plt.savefig(out2_png, dpi=300)
+    plt.close(fig2)
+    
+    return out1_png, out2_png
+
+
+def create_violin_plots():
+    """Generate plots for single data source."""
+    parameters = load_base_parameters(args.config_dir)
+
+    print(f"Loaded {len(parameters)} parameter sets")
+    
+    # Filter to numeric columns only
+    numeric_columns = []
+    for col in parameters.columns:
+        if col != 'participant' and parameters[col].dtype in ['int64', 'float64']:
+            if not parameters[col].dropna().empty:
+                numeric_columns.append(col)
+    
+    print(f"Found {len(numeric_columns)} numeric parameters: {numeric_columns}")
+    
+    # Generate plots for each parameter
+    created_files = []
+    for param in numeric_columns:
+        data = parameters[param]
+        if data.dropna().empty:
+            continue
+            
+        title = param_titles.get(param, param)
+        symbol = param_symbols.get(param, param)
+        
+        # Calculate robust range for this parameter
+        xlim = calculate_robust_range(data, args.padding)
+        
+        # Choose color based on source
+        color = "lightblue" 
+        
+        base_filename = os.path.join(args.outdir, f"{param}")
+        files = create_violin_plot_variants(data, title, symbol, xlim, color, base_filename)
+        
+        if files:
+            created_files.extend(files)
+            print(f"Created plots for {param}: range [{xlim[0]:.4f}, {xlim[1]:.4f}]")
+    
+    print(f"\nSingle mode complete! Created {len(created_files)} plot files in: {args.outdir}")
+
+
+
+def main():
+    create_violin_plots()
+
+
+if __name__ == "__main__":
+    main()
