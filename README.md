@@ -11,6 +11,7 @@ This repository provides a complete pipeline for HPA axis modeling:
 3. **Model Simulation** - Run the base HPA axis DDE model
 4. **Parameter Fitting** - Fit model parameters to experimental data using PINTS
 5. **Bifurcation Analysis** - Analyze system dynamics using DDE-BIFTOOL (MATLAB)
+6. **Stressor Perturbations** - Simulate responses to external stress (acute stress, surgery, etc.)
 
 The model describes the feedback interactions between ACTH and Cortisol, driven by CRH (external function).
 
@@ -179,6 +180,60 @@ run_all_configs  % Run bifurcation analysis for all configurations
 - Stability boundaries
 - Period doubling cascades
 - Limit cycle analysis
+
+### 6. Stressor Perturbations
+
+Simulate how the HPA axis responds to external stressors (e.g., acute stress, heart surgery). This allows you to explore how stressor timing, magnitude, and duration affect cortisol and ACTH dynamics.
+
+**How it works:** The model runs normally for 1 day to establish baseline dynamics, then applies a stressor (CRH pulse) at a specified time. You can vary the stressor's magnitude (intensity), duration (how long it lasts), circadian phase (what time of day), and ultradian phase (where in the natural cortisol rhythm it occurs).
+
+#### Run Stressor Simulations
+
+```bash
+cd stressors
+python run_model_stressor.py --scenario ACUTE --magnitude 50 --duration 60 --start_time 14580
+```
+
+**Arguments:**
+- `--scenario`: Type of stressor (ACUTE, HS1, HS2, HS3, HS4)
+- `--magnitude`: Stressor intensity (CRH units)
+- `--duration`: How long stressor lasts (minutes)
+- `--start_time`: When to apply stressor (minutes after 09:00)
+- `--config`: Model parameters file (optional)
+
+**What each scenario means:**
+- **ACUTE**: Single acute stressor (e.g., public speaking, exam)
+- **HS1-HS4**: Heart surgery scenarios with different stressor profiles
+
+**Output:** Each simulation saves to `stressors/output/{scenario}/mag{X}_dur{Y}_start{Z}/`:
+- `simulated_values_original.npy` - Normal HPA axis dynamics (no stressor)
+- `simulated_values_stressor.npy` - HPA dynamics with stressor
+- `crh_stressor.npy` - CRH stressor profile over time
+- `metrics.csv` - Response metrics (peak increase, time to peak, area under curve)
+- `combined_plot.png` - Visualization showing ACTH, cortisol, and CRH
+
+#### Analyze Stressor Results
+
+After running multiple simulations with different parameters, analyze the results:
+
+**Generate heatmaps** showing how stressor effects vary by timing and magnitude:
+```bash
+cd stressors/stressor_analysis
+python heatmaps_stressors.py --scenario ACUTE
+python heatmaps_stressors_heart_surgery.py --scenario HS1
+```
+
+**Create animations** showing dynamic response over time:
+```bash
+python make_animation_of_stressors.py --scenario ACUTE
+```
+
+**Find peaks and through timings**:
+```bash
+python get_stressor_times.py --scenario ACUTE --directory ../output/ACUTE/mag50_dur60_start14580/
+```
+
+All analysis scripts accept `--scenario` to target specific subdirectories (HS1, HS2, ACUTE, etc.). See `stressors/README.md` for full documentation.
 
 ## Data Format
 
