@@ -86,8 +86,20 @@ def prepare_raw_data(data_directory='data_analysis/data', interpolation='1T'):
             df_selected = df_selected.sort_values(by='Time')
             df_selected.set_index('Time', inplace=True)
 
-            # Resample and interpolate
-            df_selected_resampled = df_selected[['Cortisol', 'ACTH']].resample(interpolation).mean().interpolate(method='cubic')
+            # Resample over a fixed 24-hour window from the first data point so that
+            # all participants have a consistent number of 1-min rows (~1441 per participant).
+            start_time = df_selected.index.min()
+            end_time = start_time + pd.Timedelta(hours=24)
+            full_index = pd.date_range(start=start_time, end=end_time, freq=interpolation)
+            df_selected_resampled = (
+                df_selected[['Cortisol', 'ACTH']]
+                .resample(interpolation).mean()
+                .reindex(full_index)
+                .interpolate(method='cubic')
+                .ffill()
+                .bfill()
+            )
+            df_selected_resampled.index.name = 'Time'
             df_selected_resampled.reset_index(inplace=True)
             df_selected.reset_index(inplace=True)
 
@@ -146,10 +158,10 @@ def shift_test_data(ref_time_str, test_data, min_times, signal='Cortisol', inter
         if isinstance(participant_data.index, pd.MultiIndex):
             participant_data.reset_index(level=0, inplace=True)  
         
-        # Resample and interpolate
+        # Resample and interpolate (ffill/bfill handles boundary NaNs left by cubic interpolation)
         resampled = participant_data.resample(interpolation).mean()
         for col in resampled.select_dtypes(include=[np.number]).columns:
-            resampled[col] = resampled[col].interpolate(method='cubic')
+            resampled[col] = resampled[col].interpolate(method='cubic').ffill().bfill()
         participant_data = resampled
 
         participant_data.reset_index(inplace=True)

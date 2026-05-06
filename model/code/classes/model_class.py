@@ -2,7 +2,6 @@ import pints
 from ddeint import ddeint
 import math
 import numpy as np
-import scipy.signal as signal
 from model.code.classes.stressor import Stressor
 from model.code.config.parameter_boundaries import PARAMETER_BOUNDARIES
 
@@ -18,9 +17,11 @@ class Model(pints.ForwardModel):
                  , stressor_parameters = {} 
                  , length_model =1440
                  , stressor_type = ''
+                 , days_to_keep = 1
         ):
         self.signal = signal
         self.num_days = num_days
+        self.days_to_keep = days_to_keep
         self.fixed_params = fixed_params
         self.suggested_params_dict = suggested_params
         self.n_parameters_value = len(suggested_params) 
@@ -51,9 +52,10 @@ class Model(pints.ForwardModel):
 
             if self.stressor_object != None:
                 if self.stressor_type == 'HS': 
-                    crh += self.stressor_object.stressor_heart_surgery(t)
+                    stressor_value = self.stressor_object.stressor_heart_surgery(t)
                 else: 
-                    crh += self.stressor_object.stressor(t)
+                    stressor_value = self.stressor_object.stressor(t)
+                crh += stressor_value
                 
             return crh
 
@@ -78,8 +80,6 @@ class Model(pints.ForwardModel):
 
         def model(Y, t):
             A, C= Y(t)
-            
-            #A_delay = Y(t - delay)[0]
             C_delay = Y(t - delay)[1]
 
             dAdt = -gamma_a*A + h*((k_c**m_a)*self.crh(t, t_s, lambda_a, lambda_s, sigma))/(k_c**m_a+C_delay**m_a)
@@ -92,7 +92,7 @@ class Model(pints.ForwardModel):
         
         result = ddeint(model, initial_conditions, times)
 
-        result = result[self.length_model*(self.num_days-1):]
+        result = result[self.length_model*(self.num_days-self.days_to_keep):]
 
         if self.signal == 'Cortisol': 
             result = result[:, 1]
@@ -105,24 +105,7 @@ class Model(pints.ForwardModel):
 
         if (self.reject == True):
             if (self.reject_parameter_combination(result)):
-                unrealistic = np.full((self.length_model, result.ndim), 5000)
-                # Cache last run for potential reuse by penalty/error wrappers
-                try:
-                    import numpy as _np
-                    self._last_params = _np.array(parameters, copy=True)
-                    self._last_times = _np.array(times, copy=True)
-                    self._last_result = unrealistic
-                except Exception:
-                    pass
-                return unrealistic
-        # Cache last successful result
-        try:
-            import numpy as _np
-            self._last_params = _np.array(parameters, copy=True)
-            self._last_times = _np.array(times, copy=True)
-            self._last_result = result
-        except Exception:
-            pass
+                return np.full((self.length_model, result.ndim), 5000)
 
         return result
     
@@ -156,10 +139,12 @@ class Model(pints.ForwardModel):
         return pints.RectangularBoundaries(lowerbounds, upperbounds)
 
 
-    # Funciton to reject parameter combination if number of peaks are outside a plausable range
+    # Function to reject parameter combination if number of peaks are outside a plausible range
     def reject_parameter_combination(self, result): 
+        from scipy import signal as scipy_signal
+        
         for i in range(result.shape[1]):
-            signals, _ = signal.find_peaks(result[:, i])
+            signals, _ = scipy_signal.find_peaks(result[:, i])
             number_of_signals = len(signals)
 
             lower_bound, upper_bound = self.signal_range
@@ -171,36 +156,20 @@ class Model(pints.ForwardModel):
                 print(f'Rejecting parameter combination')
                 return True
         
-        # Find distance between peaks : 
-        acth_peaks, _ =  signal.find_peaks(result[:, 0])
-        cort_peaks, _ =  signal.find_peaks(result[:, 1])
-
-        #print(acth_peaks)
-        #print(cort_peaks)
-        '''
-        combined_peaks = np.sort(np.concatenate((acth_peaks, cort_peaks)))
-        print(combined_peaks)
-
-        min_distance = float('inf')
-        for peak_index in range(0, len(combined_peaks)//2):
-            distance = combined_peaks[peak_index+1] - combined_peaks[peak_index]
-            if distance<min_distance:
-                min_distance=distance
-        print(f'Minimum distance between two peaks', min_distance)
-        # If all the signals are realistic.
-        '''
         return False
 
 
 
 class ModelConstCRH(pints.ForwardModel):
-    def __init__(self, fixed_params, suggested_params, num_days = 4, signal ='Both', signal_range = (7,13)):
+    def __init__(self, fixed_params, suggested_params, num_days = 4, signal ='Both', signal_range = (7,13), days_to_keep = 1, length_model = 1440):
         self.signal = signal
         self.num_days = num_days
+        self.days_to_keep = days_to_keep
         self.fixed_params = fixed_params
         self.suggested_params_dict = suggested_params
         self.n_parameters_value = len(suggested_params) 
         self.signal_range = signal_range
+        self.length_model = length_model
         self.parameters = {**fixed_params, **suggested_params}
 
     def simulate(self, parameters, times):
@@ -239,7 +208,7 @@ class ModelConstCRH(pints.ForwardModel):
         
         result = ddeint(model, initial_conditions, times)
 
-        result = result[self.length_model*(self.num_days-1):]
+        result = result[self.length_model*(self.num_days-self.days_to_keep):]
 
         if self.signal == 'Cortisol': 
             result = result[:, 1]

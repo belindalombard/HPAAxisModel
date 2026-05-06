@@ -19,3 +19,4 @@ pyboat>=0.9.0
 imageio>=2.9.0
 tqdm>=4.62.0
 
+cosinorPy>=0.1.0

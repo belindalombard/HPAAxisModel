@@ -60,8 +60,22 @@ Core analysis functions for loading and analyzing stressor simulation results.
 **Key Functions:**
 - `get_stressor_directories()` - Find simulation directories by magnitude/duration/time
 - `parse_directory_name()` - Extract parameters from directory names
-- `load_signals()` - Load simulation results
-- `calculate_metrics()` - Compute response metrics (peak, AUC, recovery time)
+- `get_signals_from_directory()` - Load `.npy` simulation arrays
+- `plot_time_series()` - Plot CORT baseline vs. perturbed with AUC and peak annotations
+- `calculate_auc_after_perturbation()` - Compute AUC difference post-stressor (Figure S6B/C)
+- `calculate_peak_diff_after_perturbation()` - Compute first-peak difference post-stressor (Figure S6B/C)
+
+**Two-step workflow to generate aggregated `results.csv`:**
+
+1. Un-comment the first `'''…'''` block (lines ~409–494) and run the script to generate
+   per-directory `metrics.json` files (each contains `difference_in_auc` and `peak_diff`
+   computed over the 1440 minutes following the stressor onset, plus phase labels).
+
+2. The active code (after the second `'''`) reads those `metrics.json` files and appends
+   rows to `../output/ACUTE/results.csv`, which is then consumed by `heatmaps_stressors.py`.
+
+> **Note:** `metrics.json` files are NOT included in this repo (too large). Run step 1
+> using the HPC-generated `.npy` files to regenerate them.
 
 ### `stressor_analysis_heart_surgery.py`
 Specialized analysis for heart surgery scenarios.
@@ -127,8 +141,9 @@ python get_stressor_times.py --scenario HS1 --directory ../output/HS1/mag100.00_
 ```
 
 **Outputs:**
-- `points_to_consider.json` - Timing analysis results
-- `stressors/output/stressor_fig.pdf/png` - Visualization
+- `stressor_analysis/points_to_consider.json` - Ultradian timing points for each circadian cycle
+  (canonical location; generated here and must be copied to the HPC before running the sweep)
+- `stressors/output/stressor_fig.pdf/png` - Visualization (Figure S6A)
 
 ### `make_animation_of_stressors.py`
 Create animated visualizations of stressor responses over time.
@@ -158,66 +173,96 @@ python make_animation_of_stressors.py --base-dir ../output/HS2 --output-dir ../o
 
 ## Typical Workflow
 
-1. **Run stressor simulations** for a parameter sweep:
-   ```bash
-   # Loop over magnitudes and durations
-   for mag in 50 100 200; do
-     for dur in 60 120 240; do
-       python stressors/run_model_stressor.py --scenario ACUTE --magnitude $mag --duration $dur
-     done
-   done
-   ```
+### Local — single stressor run (quick test or heart-surgery scenario)
 
-2. **Aggregate results** into a CSV file (manual or custom script)
+```bash
+# Single acute stressor
+python stressors/run_model_stressor.py --config parameters_9.json --scenario ACUTE \
+    --magnitude 100 --duration 120 --time_in_scope 1440
 
-3. **Generate heatmaps** to visualize parameter effects:
+# Heart surgery scenarios
+python stressors/run_model_stressor.py --config parameters_9.json --scenario HS1
+```
+
+### Full ACUTE parameter sweep (HPC)
+
+The 961-run ACUTE sweep (magnitudes 50–250, durations 20–240 min, timings at 4
+ultradian phases × 7+ circadian cycles) is too large to store in the repository
+and must be run on an HPC cluster.
+
+1. **Generate stressor timings locally:**
    ```bash
    cd stressors/stressor_analysis
-   python heatmaps_stressors.py --scenario ACUTE
+   python get_stressor_times.py        # writes points_to_consider.json here
    ```
 
-4. **Create animations** to visualize response dynamics:
+2. **Upload `points_to_consider.json` and the bash sweep script to the cluster:**
+   ```bash
+   scp stressors/stressor_analysis/points_to_consider.json <cluster>:ddemodel/
+   scp PhD_repository/ddemodel/bash_files/run_stressors.sh  <cluster>:
+   ```
+
+3. **Run the sweep on the cluster:**
+   ```bash
+   # On the HPC:
+   bash run_stressors.sh
+   ```
+
+4. **Copy results back:**
+   ```bash
+   rsync -avz <cluster>:ddemodel_old/stressor_output/ACUTE/ stressors/output/ACUTE/
+   ```
+
+5. **Generate per-run analysis and `results.csv`:**
+   ```bash
+   cd stressors/stressor_analysis
+   # Un-comment the first triple-quoted block in stressor_analysis.py, then:
+   python stressor_analysis.py        # writes per-dir metrics.json + results.csv
+   ```
+
+6. **Generate heatmaps** (Figures 5C/D and related):
+   ```bash
+   python heatmaps_stressors.py       # reads ../output/ACUTE/results.csv
+   ```
+
+7. **Create animations:**
    ```bash
    python make_animation_of_stressors.py --scenario ACUTE
    ```
 
-5. **Analyze specific scenarios**:
-   ```bash
-   # Analyze different HS scenarios
-   python heatmaps_stressors_heart_surgery.py --scenario HS1
-   python heatmaps_stressors_heart_surgery.py --scenario HS2
-   python heatmaps_stressors_heart_surgery.py --scenario HS3
-   ```
-   ```bash
-   cd stressors/stressor_analysis
-   python heatmaps_stressors.py
-   ```
+### Heart surgery analysis
 
-4. **Analyze specific scenarios**:
-   ```bash
-   python get_stressor_times.py
-   python make_animation_of_stressors.py
-   ```
+```bash
+cd stressors/stressor_analysis
+python heatmaps_stressors_heart_surgery.py --scenario HS1
+python heatmaps_stressors_heart_surgery.py --scenario HS2
+python heatmaps_stressors_heart_surgery.py --scenario HS3
+```
 
 ## Output Directory Structure
 
+The ACUTE bulk output (`mag*` subdirectories) is **gitignored** — 961 directories are too
+large to push. `metrics.csv.example` is the only tracked file in the ACUTE directory; it
+shows the format of the per-run concatenated HPC output.
+
 ```
 stressors/output/
-├── ACUTE/                          # Acute stressor results
-│   ├── mag100.00_dur120.00_.../    # Individual simulation
-│   │   ├── simulated_values_*.npy
-│   │   ├── crh*.npy
-│   │   ├── metrics.csv
-│   │   └── *.png
-│   └── ...
-├── HS1/                            # Heart surgery scenario 1
-├── HS2/                            # Heart surgery scenario 2
-├── HS3/                            # Heart surgery scenario 3
-├── HS4/                            # Heart surgery scenario 4
-├── heatmaps/                       # Heatmap visualizations
-├── animations/                     # Animated visualizations
-├── results.csv                     # Aggregated ACUTE results
-└── results_heart_surgery.csv       # Aggregated HS results
+├── ACUTE/                              # Acute stressor results (bulk dirs gitignored)
+│   ├── metrics.csv.example             # ← TRACKED: sample of raw HPC output format
+│   ├── results.csv                     # ← generated locally by stressor_analysis.py
+│   ├── heatmaps/                       # ← generated by heatmaps_stressors.py
+│   └── mag100.00_dur120.00_.../        # ← GITIGNORED: per-run simulation data
+│       ├── simulated_values_original.npy
+│       ├── simulated_values_stressor.npy
+│       ├── crh*.npy
+│       ├── metrics.csv                 # raw per-run metrics from run_model_stressor.py
+│       └── metrics.json               # computed AUC/peak diff (generated by stressor_analysis.py loop)
+├── HS1/                                # Heart surgery scenario 1 (gitignored)
+├── HS2/                                # Heart surgery scenario 2 (gitignored)
+├── HS3/                                # Heart surgery scenario 3 (gitignored)
+├── HS4/                                # Heart surgery scenario 4 (gitignored)
+├── animations/                         # Animated visualizations (gitignored)
+└── stressor_fig.{pdf,png}             # Figure S6A — stressor timing overview
 ```
 
 ## Response Metrics

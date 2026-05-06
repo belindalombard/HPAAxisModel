@@ -126,7 +126,7 @@ class CRHPlot(BasePlot):
             ax.plot(self.x_axis, crh, '-', label='CRH drive', color='black')
 
 
-        ax.set_ylabel('Hypothalamic drive ($\Phi$)', color='black')
+        ax.set_ylabel(r'Hypothalamic drive ($\Phi$)', color='black')
         ax.tick_params(axis='y', labelcolor='black')
         self._set_xticks(ax, start_time)
 
@@ -227,4 +227,59 @@ class CombinedSimulationPlot(BasePlot):
         plt.title(config.get('plot_title', f'Participant {participant_number}'))
         plt.tight_layout()
         return fig
+
+
+def pertubation_plot(times, simulated_values, num_days=6, config={}, crh_values=[],
+                     start_time='09:00:00', lines='-', simulated_values_original=[],
+                     crh_values_original=[], length_model=1440, yaxis=None, time_of_stressor=None):
+    x_axis = [x - length_model * (num_days - 1) for x in times[((num_days - 1) * length_model):]]
+
+    fig, ax1 = plt.subplots(figsize=(9, 4), constrained_layout=True)
+
+    ax1.plot(x_axis, simulated_values[:, 0], f'b{lines}', label='Stressor ACTH')
+    ax1.set_ylabel('ACTH values', color='blue')
+    ax1.tick_params(axis='y', labelcolor='blue')
+
+    ax2 = ax1.twinx()
+    ax2.plot(x_axis, simulated_values[:, 1], f'g{lines}', label='Stressor CORT')
+    ax2.set_ylabel('Cortisol values', color='green')
+    ax2.tick_params(axis='y', labelcolor='green')
+
+    ax3 = ax1.twinx()
+    ax3.spines['right'].set_position(('outward', 60))
+    ax3.plot(x_axis, crh_values, f'k{lines}', label='Stressor CRH', color='black')
+
+    if time_of_stressor:
+        ax3.axvline(time_of_stressor, color='red', label='Time of stressor', linestyle='--')
+
+    ax3.set_ylabel('CRH values', color='black')
+    ax3.tick_params(axis='y', labelcolor='black')
+
+    if len(simulated_values_original) > 0:
+        lines = '--'
+        ax1.plot(x_axis, simulated_values_original[:, 0], f'b{lines}', label='Original ACTH')
+        ax2.plot(x_axis, simulated_values_original[:, 1], f'g{lines}', label='Original CORT')
+        if len(crh_values_original) > 0:
+            ax3.plot(x_axis, crh_values_original, f'k{lines}', label='Original CRH', color='gray')
+
+    ax1.set_xlabel('Time')
+    start_dt = datetime.strptime(start_time, "%H:%M:%S")
+    ax1.set_xticks([i for i in range(0, length_model + 1, 360)])
+    ax1.set_xticklabels([(start_dt + timedelta(minutes=i)).strftime("%H:%M") for i in range(0, length_model + 1, 360)])
+
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    lines3, labels3 = ax3.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper center',
+               bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize='small', frameon=False)
+    ax3.legend(lines3, labels3, loc='upper center',
+               bbox_to_anchor=(0.5, -0.2), ncol=1, fontsize='small', frameon=False)
+
+    if yaxis:
+        ax1.set_ybound(0, yaxis[0])
+        ax2.set_ybound(0, yaxis[1])
+        ax3.set_ybound(0, yaxis[2])
+
+    plt.title(config.get('plot_title', 'Perturbation plot'))
+    return fig, (ax1, ax2, ax3)
 

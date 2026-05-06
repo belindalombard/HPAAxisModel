@@ -13,17 +13,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-# Add parent directory (code/) to path for imports
-# Current file is in code/streamlit_app/, so parent is code/
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)  # This is code/
-sys.path.insert(0, parent_dir)
+# Add the repo root (HPAAxisModel/) to path so that absolute imports like
+# `from model.code.classes.X import ...` resolve correctly regardless of cwd.
+current_dir = os.path.dirname(os.path.abspath(__file__))   # model/code/
+repo_root = os.path.dirname(os.path.dirname(current_dir))  # HPAAxisModel/
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
-from classes.model_class import Model
-import additional_functions.model_plotting_functions_modular as mpf
+from model.code.classes.model_class import Model
+import model.code.additional_functions.model_plotting_functions_modular as mpf
 
-# Get the project root (ddemodel/)
-PROJECT_ROOT = parent_dir
+# PROJECT_ROOT is model/code/ (used for relative data paths inside configs)
+PROJECT_ROOT = current_dir
 
 def run_simulation_and_plot(
     config_file,
@@ -55,9 +56,9 @@ def run_simulation_and_plot(
     show_observed_values = config.get('show_observed_values', True)
     plot_crh = config.get('plot_crh', False)
     
-    # Data files
-    acth_data_file = os.path.join(PROJECT_ROOT, 'data', 'data_shifted_ACTH_1min_09_00.csv')
-    cort_data_file = os.path.join(PROJECT_ROOT, 'data', 'data_shifted_Cortisol_1min_09_00.csv')
+    # Data files (relative to repo root)
+    acth_data_file = os.path.join(repo_root, 'data_analysis', 'data', 'data_shifted_ACTH_1min_09_00.csv')
+    cort_data_file = os.path.join(repo_root, 'data_analysis', 'data', 'data_shifted_Cortisol_1min_09_00.csv')
     
     try:
         participant_number_int = int(participant_number)

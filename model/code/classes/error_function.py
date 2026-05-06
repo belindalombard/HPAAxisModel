@@ -27,11 +27,8 @@ class ErrorMeasureTwoSignal(pints.ErrorMeasure):
         normalised_sim = np.array([normalised_results[0][0], normalised_results[1][0]])
         normalised_obs = np.array([normalised_results[0][1], normalised_results[1][1]])
         base_error = float(np.sum((normalised_sim - normalised_obs) ** 2))
-
-        # Pure MSE error, no penalty
-        error = base_error
-        self.current_error = error
-        return error
+        self.current_error = base_error
+        return base_error
 
     def normalise_array(self, simulated, observed):
         max_sim = np.max(simulated)

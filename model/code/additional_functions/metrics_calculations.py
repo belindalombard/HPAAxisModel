@@ -2,7 +2,6 @@
 
 import numpy as np
 from scipy.integrate import simpson
-import time
 from numpy import trapezoid as trapz
 
 
@@ -46,7 +45,6 @@ def difference_in_auc_simpson(original_signal, stressed_signal, time_of_stressor
 def run_metrics(stressor_parameters, crh_values_original, crh_values, simulated_values_original, simulated_values): 
     results_dictionary = {}
     time_in_scope = int(stressor_parameters['time_in_scope'])
-    print(stressor_parameters)
     results_dictionary['stressor_duration'] = calculate_stressor_duration(crh_values_original
                                                                           , crh_values
                                                                           , time_in_scope)
@@ -67,7 +65,4 @@ def run_metrics(stressor_parameters, crh_values_original, crh_values, simulated_
     results_dictionary['cort_auc_diff_simpson'] = difference_in_auc_simpson(simulated_values_original[:, 1], simulated_values[:, 1], time_in_scope)
     results_dictionary['cort_auc_diff_trap'] = difference_in_auc_trap(simulated_values_original[:, 1], simulated_values[:, 1], time_in_scope)
 
-    print(results_dictionary)
-    time.sleep(3)
-    
     return results_dictionary, acth_peaks, acth_peaks_shifted, cort_peaks, cort_peaks_shifted

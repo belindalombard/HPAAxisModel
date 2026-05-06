@@ -1,3 +1,21 @@
+"""
+HPA Axis Stressor Simulations
+==============================
+Runs DDE model simulations with external stress inputs and generates
+plots comparing stressed vs. baseline ACTH/Cortisol dynamics.
+
+Supported stressor types:
+  - Generic stressor (decaying pulse)
+  - Heart-surgery (HS) stressor profile
+
+Key settings (configurable via command-line or config JSON):
+  model/config/base/*.json  — baseline parameters
+  stressor magnitude / decay / time_in_scope fields
+
+Usage:
+    python stressors/run_model_stressor.py --config model/config/base/mean_parameters.json
+"""
+
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -9,16 +27,15 @@ import numpy as np
 import time
 import pandas as pd
 import json
-from model.code.classes.model_class import Model
 import argparse
-from model.code.additional_functions.old import model_plotting_functions
+from model.code.classes.model_class import Model
+import model.code.additional_functions.model_plotting_functions_modular as mpf
 from model.code.additional_functions import metrics_calculations as mc
 import csv
 from model.code.additional_functions import additional_functions as af
 from typing import Optional
 
 def save_metrics_csv(metrics, output_dir):
-    import csv, os
     csv_file = os.path.join(output_dir, "metrics.csv")
     file_exists = os.path.isfile(csv_file)
     with open(csv_file, mode='a', newline='') as file:
@@ -28,7 +45,6 @@ def save_metrics_csv(metrics, output_dir):
         writer.writerow(metrics)
 
 def save_numpy_arrays(output_dir, arrays_dict):
-    import numpy as np, os
     for name, arr in arrays_dict.items():
         np.save(os.path.join(output_dir, f"{name}.npy"), arr)
 
@@ -274,31 +290,10 @@ def save_final_style_plot(
     fig.tight_layout()
     os.makedirs(output_dir, exist_ok=True)
     out_path = os.path.join(output_dir, filename)
-
-    # Robust save with diagnostics
-    try:
-        fig.savefig(out_path, bbox_inches="tight")
-        plt.close(fig)
-        if os.path.exists(out_path):
-            print(f"Saved final-style plot to {os.path.abspath(out_path)}")
-        else:
-            print(
-                f"Attempted to save final-style plot to {os.path.abspath(out_path)} but the file was not found right after saving."
-            )
-            try:
-                entries = os.listdir(output_dir)
-                print("Directory listing for output_dir:")
-                for name in entries:
-                    print(f" - {name}")
-            except Exception as e:
-                print(f"Could not list directory {os.path.abspath(output_dir)}: {e}")
-    except Exception as e:
-        print(f"ERROR saving final-style plot to {os.path.abspath(out_path)}: {e}", file=sys.stderr)
-        try:
-            plt.close(fig)
-        except Exception:
-            pass
-    return out_path if os.path.exists(out_path) else ""
+    fig.savefig(out_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved plot to {os.path.abspath(out_path)}")
+    return out_path
 
 
 #Change directory - only if needed
@@ -341,15 +336,10 @@ args, stressor_from_args, scenario_from_args, save, no_legend, crh_source, plot_
 
 config_file = args['config_file']
 
-print(f'Current working directory: {os.getcwd()}')
-print(f'Looking for config file at: {config_file}')
-print(f'Absolute path: {os.path.abspath(config_file)}')
-print(f'File exists: {os.path.exists(config_file)}')
+print(f'Config: {config_file}')
 
 with open(config_file, 'r') as file:
     config = json.load(file)
-
-print(f'Getting options from config file {config_file}.')
 
 SCENARIOS = {
     "HS1": {"duration": 20, "plateau": 160, "beta": 1.5, "decay_shape": 0.01, "time_in_scope": 1440+60+45, "magnitude": 1000},
@@ -409,14 +399,7 @@ stressor_type = 'HS' if scenario != 'ACUTE' else 'ACUTE'
 if scenario == "HS1":
     stressor_parameters['rho'] = None  # force auto-compute based on duration
 
-print(f"Stressor parameters just before model creation:")
-print(f"  duration: {stressor_parameters.get('duration')}")
-print(f"  plateau: {stressor_parameters.get('plateau')}")
-print(f"  start: {stressor_parameters.get('start')}")
-print(f"  magnitude: {stressor_parameters.get('magnitude')}")
-print(f"  rho: {stressor_parameters.get('rho')}")
-print(f"  time_in_scope: {stressor_parameters.get('time_in_scope')}")
-print(f"  All stressor_parameters: {stressor_parameters}")
+print(f"Stressor: scenario={scenario}, magnitude={stressor_parameters.get('magnitude')}, duration={stressor_parameters.get('duration')}, plateau={stressor_parameters.get('plateau')}")
 print(f'Setting up model')
 
 dde_model = Model(
@@ -432,7 +415,6 @@ dde_model = Model(
 
 timesteps = length_plot * num_days
 times = np.linspace(0, timesteps, timesteps)
-print(f"  times[0]: {times[0]}, times[-1]: {times[-1]}, len(times): {len(times)}")
 parameters = dde_model.suggested_parameters()
 
 print(f"Simulating model values.")
@@ -460,7 +442,7 @@ simulated_values_original = dde_model.simulate(parameters, times)
 crh_values_original_full = [dde_model.crh(t) for t in times]
 crh_values_original = crh_values_original_full[length_plot * (num_days - 1):]
 
-fig, axes = model_plotting_functions.pertubation_plot(
+fig, axes = mpf.pertubation_plot(
     times,
     simulated_values,
     num_days,

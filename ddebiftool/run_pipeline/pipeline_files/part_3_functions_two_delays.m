@@ -58,8 +58,26 @@ funcs = set_funcs( ...
 
 %% Create a SS object
 % This is the "initial guess" for a steady state solution
-stst.kind      = 'stst';
-stst.parameter = struct2array(parameters);     % row vector
-stst.x         = reshape(struct2array(x_values), [], 1);  % column vector
+stst.kind = 'stst';
+% Convert struct to array preserving field order
+param_fields = fieldnames(parameters);
+stst.parameter = zeros(1, numel(param_fields));
+for i = 1:numel(param_fields)
+    stst.parameter(i) = parameters.(param_fields{i});
+end
+x_fields = fieldnames(x_values);
+stst.x = zeros(numel(x_fields), 1);
+for i = 1:numel(x_fields)
+    stst.x(i) = x_values.(x_fields{i});
+end
+
+method = df_mthod('stst');
+
+method.stability.minimal_real_part = -1e-5;   
+method.point.extra_condition = 1e-6;          
+method.continuation.step = 0.01;              
+method.continuation.h_max = 0.01;             
+method.newton.tol = 1e-6;                    
+method.newton.max_iter = 10;           
 
 %% Next file to run: part_4_initial_equilibrium.m

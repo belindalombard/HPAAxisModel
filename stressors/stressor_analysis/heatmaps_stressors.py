@@ -1,3 +1,32 @@
+"""Stressor Heatmaps — Figures S6D/E, S7A/B (and related)
+
+Generates heatmaps of CORT response metrics (AUC difference, peak difference)
+across the stressor parameter space (magnitude × duration × circadian/ultradian phase).
+
+Input
+-----
+    ../output/{scenario}/results.csv
+        Phase-annotated aggregated results produced by running stressor_analysis.py
+        (which reads per-run metrics.json files and labels each run with its
+        circadian and ultradian phase).
+
+        An example of the raw HPC output format (before phase annotation) is
+        provided in ../output/ACUTE/metrics.csv.example. To regenerate the full
+        results.csv for heatmap plotting, run the HPC sweep and then
+        stressor_analysis.py.
+
+Outputs
+-------
+    ../output/{scenario}/heatmaps/fixed_duration_*_{auc,peakdiff}.{pdf,png}
+    ../output/{scenario}/heatmaps/fixed_magnitude_*_{auc,peakdiff}.{pdf,png}
+
+Usage
+-----
+    cd stressors/stressor_analysis
+    python heatmaps_stressors.py                              # ACUTE (default)
+    python heatmaps_stressors.py --scenario HS1
+    python heatmaps_stressors.py --results-file ../output/ACUTE/results.csv
+"""
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt

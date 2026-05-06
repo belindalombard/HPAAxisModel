@@ -16,22 +16,29 @@ ddebiftool/helpers
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# Data files (optional - uncomment if you don't want to track large data)
+# Data files 
 # *.csv
 # *.npy
 # *.npz
 
-# Data analysis data files and outputs
+# Data analysis outputs
 data_analysis/data/*.csv
 data_analysis/data/*.npy
 data_analysis/data/*.npz
+data_analysis/data/*.png
 data_analysis/output/
 
 # Model outputs
 model/output/
+model/analysis/output/
+model/analysis/crh_oscillatory/output/
 
-# Stressor outputs
-stressors/output/
+# Stressor outputs — bulk HPC-generated runs are too large to push
+stressors/output/ACUTE/mag*
+stressors/output/ACUTE/heatmaps/
+stressors/output/ACUTE/animations/
+stressors/output/HS*/
+stressors/output/animations/
 
 # PINTS fitting outputs
 pints_fitting/output/

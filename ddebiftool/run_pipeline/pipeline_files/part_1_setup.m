@@ -4,7 +4,17 @@
 %% Clear variables, format and add DDEBIFTOOL to the path.
 clear all;             
 format compact
-addpath('C:\Users\belinda\Desktop\PhD\installation\DDE-Biftool\ddebiftool');   
+% Add DDE-BIFTOOL to path — update this path to point to your local installation
+if ispc
+    addpath('C:\Users\belinda\Desktop\PhD\installation\DDE-Biftool\ddebiftool');
+else
+    % macOS / Linux: set DDEBIFTOOL_PATH env variable or edit the line below
+    ddebiftool_path = getenv('DDEBIFTOOL_PATH');
+    if isempty(ddebiftool_path)
+        ddebiftool_path = fullfile(fileparts(fileparts(fileparts(pwd))), 'ddebiftool');
+    end
+    addpath(ddebiftool_path);
+end
 
 options = ddeset(...
     'MaxStep', 0.01, ...    
@@ -12,14 +22,8 @@ options = ddeset(...
     'AbsTol', 1e-9, ...    
     'InitialStep', 0.01);    
 
-method = df_mthod('stst');
-
-method.stability.minimal_real_part = -1e-5;   
-method.point.extra_condition = 1e-6;          
-method.continuation.step = 0.01;              
-method.continuation.h_max = 0.01;             
-method.newton.tol = 1e-6;                    
-method.newton.max_iter = 10;                  
+%% Solver defaults  
+% (method is set later in part_3_functions_*.m once funcs is available)
 
 %% Next file to run: part_2_config.m 
 
