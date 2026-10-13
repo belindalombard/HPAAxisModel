@@ -37,13 +37,13 @@ from datetime import datetime, timedelta
 import seaborn as sns
 
 
-def prepare_raw_data(data_directory='data_analysis/data', interpolation='1T'):
+def prepare_raw_data(data_directory='data_analysis/data', interpolation='1min'):
     """
     Load and prepare raw participant data.
     
     Args:
         data_directory: Directory containing raw data
-        interpolation: Resampling frequency (default: '1T' for 1 minute)
+        interpolation: Resampling frequency (default: '1min' for 1 minute)
     
     Returns:
         tuple: (combined_data, combined_data_resampled)
@@ -217,7 +217,7 @@ def main():
     print()
     
     # Step 1: Load and resample raw data
-    combined_data, combined_data_resampled = prepare_raw_data(data_directory, interpolation='10T')
+    combined_data, combined_data_resampled = prepare_raw_data(data_directory, interpolation='10min')
     combined_data, combined_data_resampled = prepare_raw_data(data_directory)
 
     # Save combined data
